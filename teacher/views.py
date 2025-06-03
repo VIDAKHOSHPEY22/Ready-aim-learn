@@ -1,105 +1,110 @@
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.http import HttpResponse, HttpResponseRedirect, Http404
-from django.shortcuts import render, get_object_or_404,redirect
+from django.shortcuts import render, get_object_or_404, redirect
 from .models import Appointment
 from .forms import AppointmentForm
 from django.contrib import messages
 from django.contrib.auth.models import Group
 
 
-def teacher(request):#this section for my appointment
-	group_name=Group.objects.all().filter(user = request.user)# get logget user grouped name
-	group_name=str(group_name[0]) # convert to string
-	if "Teacher" == group_name:
-		user_name=request.user.get_username()#Getting Username
+def teacher(request):
+    # Check if logged-in user is a Teacher
+    group_qs = Group.objects.filter(user=request.user)
+    if not group_qs.exists():
+        return redirect('http://127.0.0.1:8000/')
+    group_name = str(group_qs[0])
 
-		#Getting all Post and Filter By Logged UserName
-		appointment_list = Appointment.objects.all().order_by("-id").filter(user=request.user)
-		q=request.GET.get("q")#search start
-		if q:
-			appointment_list=appointment_list.filter(appointment_with__icontains=q)
-		else:
-			appointment_list = appointment_list# search end
+    if group_name == "Teacher":
+        user_name = request.user.get_username()
+        appointment_list = Appointment.objects.filter(user=request.user).order_by("-id")
 
-		appointments= {
-		    "query": appointment_list,
-		    "user_name":user_name
-		}
-		return render(request, 'teacher.html', appointments )
-	else:
-		return redirect('http://127.0.0.1:8000/') 
+        q = request.GET.get("q")
+        if q:
+            appointment_list = appointment_list.filter(appointment_with__icontains=q)
+
+        context = {
+            "query": appointment_list,
+            "user_name": user_name
+        }
+        return render(request, 'teacher.html', context)
+
+    return redirect('http://127.0.0.1:8000/')
+
 
 def teacher_appointment_list(request):
-	group_name=Group.objects.all().filter(user = request.user)# get logget user grouped name
-	group_name=str(group_name[0]) # convert to string
-	if "Teacher" == group_name:
-		user_name=request.user.get_username()#Getting Username
+    group_qs = Group.objects.filter(user=request.user)
+    if not group_qs.exists():
+        return redirect('http://127.0.0.1:8000/')
+    group_name = str(group_qs[0])
 
-		#Getting all Post and Filter By Logged UserName
-		appointment_list = Appointment.objects.all().order_by("-id").filter(user=request.user)
-		q=request.GET.get("q") #search start
-		if q:
-			appointment_list=appointment_list.filter(date__icontains=q)
-		else:
-			appointment_list = appointment_list #search end
+    if group_name == "Teacher":
+        user_name = request.user.get_username()
+        appointment_list = Appointment.objects.filter(user=request.user).order_by("-id")
 
-		appointments= {
-		    "query": appointment_list,
-		    "user_name":user_name,
-		    "form":AppointmentForm(),
-		}
-		form = AppointmentForm(request.POST or None)
-		if form.is_valid():
-			    saving=form.save(commit=False)
-			    saving.user=request.user
-			    saving.save()
-			    messages.success(request, 'Post Created Sucessfully')
-		return render(request, 'teacher_create_appointment.html', appointments )
-	else:
-		return redirect('http://127.0.0.1:8000/')
+        q = request.GET.get("q")
+        if q:
+            appointment_list = appointment_list.filter(date__icontains=q)
 
-  
+        form = AppointmentForm(request.POST or None)
+        if form.is_valid():
+            new_appointment = form.save(commit=False)
+            new_appointment.user = request.user
+            new_appointment.save()
+            messages.success(request, 'Post Created Successfully')
+            return redirect('teacher_appointment_list')  # better to redirect after POST
+
+        context = {
+            "query": appointment_list,
+            "user_name": user_name,
+            "form": form,
+        }
+        return render(request, 'teacher_create_appointment.html', context)
+
+    return redirect('http://127.0.0.1:8000/')
+
+
 def appointment_delete(request, id):
-	group_name=Group.objects.all().filter(user = request.user)# get logget user grouped name
-	group_name=str(group_name[0]) # convert to string
-	if "Teacher" == group_name:
-		single_appointment= Appointment.objects.get(id=id)
-		single_appointment.delete()
-		messages.success(request, 'Your profile was updated.')
-		return redirect('http://127.0.0.1:8000/teacher/create_appointment/')
-	else:
-		return redirect('http://127.0.0.1:8000/')
+    group_qs = Group.objects.filter(user=request.user)
+    if not group_qs.exists():
+        return redirect('http://127.0.0.1:8000/')
+    group_name = str(group_qs[0])
 
-def teacher_appointment_update(request,id):
-	group_name=Group.objects.all().filter(user = request.user)# get logget user grouped name
-	group_name=str(group_name[0]) # convert to string
-	if "Teacher" == group_name:
-		user_name=request.user.get_username()#Getting Username
+    if group_name == "Teacher":
+        appointment = get_object_or_404(Appointment, id=id, user=request.user)
+        appointment.delete()
+        messages.success(request, 'Appointment deleted successfully.')
+        return redirect('teacher_appointment_list')
 
-		#Getting all Post and Filter By Logged UserName
-		appointment_list = Appointment.objects.all().order_by("-id").filter(user=request.user)
-		q=request.GET.get("q") #search start
-		if q:
-			appointment_list=appointment_list.filter(date__icontains=q)
-		else:
-			appointment_list = appointment_list #search end
+    return redirect('http://127.0.0.1:8000/')
 
-		single_appointment=ingle_appointment= Appointment.objects.get(id=id)
-		form = AppointmentForm(request.POST or None, instance=single_appointment)
-		if form.is_valid():
-			    saving=form.save(commit=False)
-			    saving.user=request.user
-			    saving.save()
-			    messages.success(request, 'Post Created Sucessfully')
-			    return redirect('http://127.0.0.1:8000/teacher/create_appointment/')
-			    
 
-		appointments= {
-		    "query": appointment_list,
-		    "user_name":user_name,
-		    "form":form,
-		}
+def teacher_appointment_update(request, id):
+    group_qs = Group.objects.filter(user=request.user)
+    if not group_qs.exists():
+        return redirect('http://127.0.0.1:8000/')
+    group_name = str(group_qs[0])
 
-		return render(request, 'teacher_appointment_update.html', appointments )
-	else:
-		return redirect('http://127.0.0.1:8000/')
+    if group_name == "Teacher":
+        appointment = get_object_or_404(Appointment, id=id, user=request.user)
+
+        form = AppointmentForm(request.POST or None, instance=appointment)
+        if form.is_valid():
+            updated_appointment = form.save(commit=False)
+            updated_appointment.user = request.user
+            updated_appointment.save()
+            messages.success(request, 'Appointment updated successfully.')
+            return redirect('teacher_appointment_list')
+
+        appointment_list = Appointment.objects.filter(user=request.user).order_by("-id")
+        q = request.GET.get("q")
+        if q:
+            appointment_list = appointment_list.filter(date__icontains=q)
+
+        context = {
+            "query": appointment_list,
+            "user_name": request.user.get_username(),
+            "form": form,
+        }
+        return render(request, 'teacher_appointment_update.html', context)
+
+    return redirect('http://127.0.0.1:8000/')
